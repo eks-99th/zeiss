@@ -10,10 +10,11 @@ using ::testing::DoAll;
 using ::testing::Return;
 using ::testing::SetArgReferee;
 
-class MockSerialPort : public Iexf {
+class MockSerialPort : public Iexs {
 public:
   MOCK_METHOD(void, ReadByte, (char &charBuffer, unsigned long msTimeout),
               (override));
+  MOCK_METHOD(void, WriteByte, (char charBuffer), (override));
 };
 
 class MockClock : public IClock {
@@ -36,7 +37,7 @@ TEST(StartUp1, WaitForStartReceiveNAK) {
   EXPECT_CALL(mockSerial, ReadByte(_, xmodem::WaitACK))
       .WillOnce(DoAll(SetArgReferee<0>(xmodem::NAK), Return()));
 
-  auto testobjEXF = new exf(mockSerial, mockClock);
+  auto testobjEXF = new esx(mockSerial, mockClock);
   testobjEXF->waitForStart();
 }
 
@@ -63,7 +64,7 @@ TEST(StartUp, WaitForStartReceiveNAKOn3RD) {
       .WillOnce(Return(after_1500ms))  // Second byte received
       .WillOnce(Return(after_2000ms)); // NAK received
 
-  auto testobjEXF = new exf(mockSerial, mockClock);
+  auto testobjEXF = new esx(mockSerial, mockClock);
   testobjEXF->waitForStart();
 }
 
@@ -84,6 +85,53 @@ TEST(StartUp, WaitForStartReceiveTimesOut) {
       .WillOnce(Return(start_time))  // First call to now()
       .WillOnce(Return(timeout_ms)); // First byte received
 
-  auto testobjEXF = new exf(mockSerial, mockClock);
+  auto testobjEXF = new esx(mockSerial, mockClock);
   EXPECT_THROW(testobjEXF->waitForStart(), std::runtime_error);
+}
+
+TEST(StartUp1, AfterNakSendsSOH) {
+  // The user calls the waitForStart() method and the xmodem::NAK is received
+  //  in the first call to ReadByte, after that SOH is sent
+  MockSerialPort mockSerial;
+  MockClock mockClock;
+
+  // Set up the time interface
+  auto start_time = std::chrono::steady_clock::now();
+  EXPECT_CALL(mockClock, now()).WillRepeatedly(Return(start_time));
+
+  // Set up the serial
+  EXPECT_CALL(mockSerial, ReadByte(_, xmodem::WaitACK))
+      .WillOnce(DoAll(SetArgReferee<0>(xmodem::NAK), Return()));
+  EXPECT_CALL(mockSerial, WriteByte(xmodem::SOH)).Times(1);
+
+  auto testobjEXF = new esx(mockSerial, mockClock);
+  testobjEXF->waitForStart();
+  testobjEXF->sendSOH();
+}
+
+TEST(StartUp1, AfterNakAndSOHSendsBLK) {
+  // The user calls the waitForStart() method and the xmodem::NAK is received.
+  //  After that, the SOH is sent, followed by the BLK and ~BLK.
+  MockSerialPort mockSerial;
+  MockClock mockClock;
+
+  // Set up the time interface
+  auto start_time = std::chrono::steady_clock::now();
+  EXPECT_CALL(mockClock, now()).WillRepeatedly(Return(start_time));
+
+  // Set up the serial
+  EXPECT_CALL(mockSerial, ReadByte(_, xmodem::WaitACK))
+      .WillOnce(DoAll(SetArgReferee<0>(xmodem::NAK), Return()));
+  {
+    ::testing::InSequence seq;
+
+    EXPECT_CALL(mockSerial, WriteByte(xmodem::SOH)).Times(1); // Expect SOH
+    EXPECT_CALL(mockSerial, WriteByte(0x01)).Times(1);        // Expect BLK
+    EXPECT_CALL(mockSerial, WriteByte(0xFE)).Times(1);        // Expect ~BLK
+  }
+
+  auto testobjEXF = new esx(mockSerial, mockClock);
+  testobjEXF->waitForStart();
+  testobjEXF->sendSOH();
+  testobjEXF->sendBlock();
 }

@@ -5,8 +5,10 @@
 
 class esx {
 public:
-  explicit esx(Iexs &port, IClock &clock) : _Port(port), _Clock(clock){};
+  explicit esx(Iexs &port, IClock &clock);
   void waitForStart();
+  void sendSOH();
+  void sendBlock();
   ~esx() = default;
 
 private:

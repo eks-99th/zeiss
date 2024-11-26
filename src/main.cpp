@@ -34,6 +34,8 @@ public:
     serialPort.ReadByte(charBuffer, msTimeout);
   }
 
+  void WriteByte(char charBuffer) override { serialPort.WriteByte(charBuffer); }
+
 private:
   LibSerial::SerialPort serialPort;
 };
@@ -85,7 +87,7 @@ int main(int argc, char *argv[]) {
     exsSerialPort serialPort(serialPortName);
     Clock clock;
 
-    // Create an instance of exf
+    // Create an instance of esx
     esx myExf(serialPort, clock);
 
     // Call waitForStart to wait for NAK

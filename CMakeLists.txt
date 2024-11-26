@@ -34,5 +34,5 @@ target_include_directories(serial_example PRIVATE /usr/include/libserial)
 target_link_libraries(serial_example PRIVATE ${LibSerial_LIB} MyLibrary)
 
 # Add Google Test
-# enable_testing()
-# add_subdirectory(tests)
+enable_testing()
+add_subdirectory(tests)
