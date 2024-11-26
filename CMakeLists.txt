@@ -7,9 +7,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Include directories
 include_directories(include)
+include_directories(interfaces)
 
 # Create a library from the source files
-add_library(MyLibrary src/example.cpp)
+add_library(MyLibrary src/exs.cpp)
 
 # Add executable
 add_executable(serial_example src/main.cpp)

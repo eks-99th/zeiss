@@ -10,10 +10,10 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(googletest)
 
 # Add the test executable
-add_executable(UnitTests test_example.cpp)
+add_executable(UnitTests test_exs.cpp)
 
-# Link with Google Test and the library
-target_link_libraries(UnitTests MyLibrary gtest gtest_main)
+# Link with Google Test, Google Mock, and the library
+target_link_libraries(UnitTests MyLibrary gtest gmock gtest_main gmock_main)
 
 # Add test cases to CTest
 include(GoogleTest)
