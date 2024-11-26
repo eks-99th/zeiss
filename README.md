@@ -4,6 +4,8 @@ Receiver
 rx --xmodem -vv received_file.txt < /dev/ttyUSB1 > /dev/ttyUSB1
 
 
+https://www.adontec.com/Extended_XMODEM.pdf
+
 # Constrains
 
 - Work only over serial
