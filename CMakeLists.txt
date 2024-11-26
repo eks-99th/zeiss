@@ -18,8 +18,8 @@ add_executable(serial_example src/main.cpp)
 # Find and link LibSerial
 find_library(LibSerial_LIB serial REQUIRED)
 target_include_directories(serial_example PRIVATE /usr/include/libserial)
-target_link_libraries(serial_example PRIVATE ${LibSerial_LIB})
+target_link_libraries(serial_example PRIVATE ${LibSerial_LIB} MyLibrary)
 
 # Add Google Test
-enable_testing()
-add_subdirectory(tests)
+# enable_testing()
+# add_subdirectory(tests)

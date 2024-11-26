@@ -4,18 +4,20 @@
 #include <iostream> //to be deleted
 #include <stdexcept>
 
-void exf::waitForStart() {
+void esx::waitForStart() {
   char charBuffer = 0;
   auto start_time = _Clock.now();
   while (charBuffer != xmodem::NAK) {
     verifyAckTimeout(start_time);
+    std::cout << "Waiting for NAK" << std::endl;
     _Port.ReadByte(charBuffer, xmodem::WaitACK);
     std::cout << "Received char: 0x" << std::hex
-              << static_cast<uint16_t>(charBuffer) << std::dec << std::endl;
+              << static_cast<uint16_t>(charBuffer) << std::dec << " ('"
+              << charBuffer << "')" << std::endl;
   }
 }
 
-void exf::verifyAckTimeout(std::chrono::steady_clock::time_point start_time) {
+void esx::verifyAckTimeout(std::chrono::steady_clock::time_point start_time) {
   auto now = _Clock.now();
   auto elapsed_ms =
       std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time)

@@ -1,29 +1,54 @@
+// #include "ConcreteSerialPort.hpp"
+// #include "Clock.hpp"
+#include "IClock.hpp"
+#include "exs.hpp"
+#include "xmodem_const.hpp"
+#include <chrono>
 #include <iostream>
 #include <libserial/SerialPort.h>
 
-using namespace LibSerial;
+class Clock : public IClock {
+public:
+  std::chrono::steady_clock::time_point now() const override {
+    return std::chrono::steady_clock::now();
+  }
+};
+
+class exsSerialPort : public Iexs {
+public:
+  explicit exsSerialPort(const std::string &portName) {
+    serialPort.Open(portName);
+  }
+
+  ~exsSerialPort() override {
+    if (serialPort.IsOpen()) {
+      serialPort.Close();
+    }
+  }
+
+  void ReadByte(char &charBuffer, unsigned long msTimeout) override {
+    serialPort.ReadByte(charBuffer, msTimeout);
+  }
+
+private:
+  LibSerial::SerialPort serialPort;
+};
 
 int main() {
-  SerialPort serial;
-
   try {
-    serial.Open("/dev/ttyUSB0");
-    serial.SetBaudRate(BaudRate::BAUD_115200);
-    serial.SetCharacterSize(CharacterSize::CHAR_SIZE_8);
-    serial.SetStopBits(StopBits::STOP_BITS_1);
-    serial.SetParity(Parity::PARITY_NONE);
+    // Initialize the serial port and clock
+    exsSerialPort SerialPort("/dev/ttyUSB0");
+    Clock clock;
 
-    // Write data
-    serial.Write("Hello, Serial!\n");
+    // Create an instance of exf
+    esx myExf(SerialPort, clock);
 
-    // Read data
-    std::string data;
-    serial.ReadLine(data, '\n', 5000); // Read until newline or timeout
-    std::cout << "Received: " << data << std::endl;
-
-    serial.Close();
-  } catch (const OpenFailed &) {
-    std::cerr << "Failed to open serial port!" << std::endl;
+    // Call waitForStart to wait for NAK
+    myExf.waitForStart();
+    std::cout << "Successfully received NAK. Ready to proceed." << std::endl;
+  } catch (const std::exception &e) {
+    std::cerr << "Error: " << e.what() << std::endl;
+    return 1;
   }
 
   return 0;
