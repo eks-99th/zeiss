@@ -11,8 +11,13 @@ include_directories(include)
 # Create a library from the source files
 add_library(MyLibrary src/example.cpp)
 
-# Add the main executable
-# add_executable(MyProject src/main.cpp)
+# Add executable
+add_executable(serial_example src/main.cpp)
+
+# Find and link LibSerial
+find_library(LibSerial_LIB serial REQUIRED)
+target_include_directories(serial_example PRIVATE /usr/include/libserial)
+target_link_libraries(serial_example PRIVATE ${LibSerial_LIB})
 
 # Add Google Test
 enable_testing()
