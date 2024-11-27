@@ -25,5 +25,6 @@ set(TESTS_BUILD_DIR "${CMAKE_BINARY_DIR}/tests")
 
 # Copy test data files to the build directory
 file(COPY ${TESTS_SOURCE_DIR}/dummy.txt DESTINATION ${TESTS_BUILD_DIR})
+file(COPY ${TESTS_SOURCE_DIR}/medium.txt DESTINATION ${TESTS_BUILD_DIR})
 file(COPY ${TESTS_SOURCE_DIR}/small.txt DESTINATION ${TESTS_BUILD_DIR})
 file(COPY ${TESTS_SOURCE_DIR}/big.txt DESTINATION ${TESTS_BUILD_DIR})

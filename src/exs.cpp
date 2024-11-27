@@ -45,11 +45,7 @@ void esx::waitForStart() {
   auto start_time = _Clock.now();
   while (charBuffer != xmodem::NAK) {
     verifyAckTimeout(start_time);
-    std::cout << "Waiting for NAK" << std::endl;
     _Port.ReadByte(charBuffer, xmodem::WaitACK);
-    std::cout << "Received char: 0x" << std::hex
-              << static_cast<uint16_t>(charBuffer) << std::dec << " ('"
-              << charBuffer << "')" << std::endl;
   }
   _state = InternalStates::SendingSoh;
 }
@@ -59,11 +55,7 @@ void esx::waitForAck() {
   auto start_time = _Clock.now();
   while (charBuffer != xmodem::ACK) {
     verifyAckTimeout(start_time);
-    std::cout << "Waiting for ACK" << std::endl;
     _Port.ReadByte(charBuffer, xmodem::WaitACK);
-    std::cout << "Received char: 0x" << std::hex
-              << static_cast<uint16_t>(charBuffer) << std::dec << " ('"
-              << charBuffer << "')" << std::endl;
   }
 }
 

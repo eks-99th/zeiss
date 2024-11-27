@@ -64,6 +64,7 @@ void printFileAsHex(const std::string &filePath) {
     std::cout << std::hex << std::setfill('0') << std::setw(2)
               << (static_cast<unsigned int>(byte) & 0xFF) << " ";
   }
+
   std::cout << std::endl;
   file.close();
 }
