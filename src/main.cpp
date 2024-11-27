@@ -52,6 +52,22 @@ size_t getFileSize(const std::string &filePath) {
   return fileSize;
 }
 
+void printFileAsHex(const std::string &filePath) {
+  std::ifstream file(filePath, std::ios::binary); // Open file in binary mode
+  if (!file.is_open()) {
+    std::cerr << "Failed to open file: " << filePath << std::endl;
+    return;
+  }
+
+  char byte;
+  while (file.get(byte)) {
+    std::cout << std::hex << std::setfill('0') << std::setw(2)
+              << (static_cast<unsigned int>(byte) & 0xFF) << " ";
+  }
+  std::cout << std::endl;
+  file.close();
+}
+
 int main(int argc, char *argv[]) {
   // Argument parsing with argparse
   argparse::ArgumentParser program("xmodem_transfer");
@@ -82,13 +98,14 @@ int main(int argc, char *argv[]) {
 
     size_t fileSize = getFileSize(filePath);
     std::cout << "File size: " << fileSize << " bytes" << std::endl;
+    printFileAsHex(filePath);
 
     // Initialize the serial port and clock
     exsSerialPort serialPort(serialPortName);
     Clock clock;
 
     // Create an instance of esx
-    esx myExf(serialPort, clock);
+    esx myExf(serialPort, clock, filePath);
 
     // Call waitForStart to wait for NAK
     myExf.waitForStart();

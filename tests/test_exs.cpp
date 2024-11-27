@@ -10,6 +10,8 @@ using ::testing::DoAll;
 using ::testing::Return;
 using ::testing::SetArgReferee;
 
+const std::string &dummyFilePath = "dummy.txt";
+
 class MockSerialPort : public Iexs {
 public:
   MOCK_METHOD(void, ReadByte, (char &charBuffer, unsigned long msTimeout),
@@ -37,7 +39,7 @@ TEST(StartUp1, WaitForStartReceiveNAK) {
   EXPECT_CALL(mockSerial, ReadByte(_, xmodem::WaitACK))
       .WillOnce(DoAll(SetArgReferee<0>(xmodem::NAK), Return()));
 
-  auto testobjEXF = new esx(mockSerial, mockClock);
+  auto testobjEXF = new esx(mockSerial, mockClock, dummyFilePath);
   testobjEXF->waitForStart();
 }
 
@@ -64,7 +66,7 @@ TEST(StartUp, WaitForStartReceiveNAKOn3RD) {
       .WillOnce(Return(after_1500ms))  // Second byte received
       .WillOnce(Return(after_2000ms)); // NAK received
 
-  auto testobjEXF = new esx(mockSerial, mockClock);
+  auto testobjEXF = new esx(mockSerial, mockClock, dummyFilePath);
   testobjEXF->waitForStart();
 }
 
@@ -85,7 +87,7 @@ TEST(StartUp, WaitForStartReceiveTimesOut) {
       .WillOnce(Return(start_time))  // First call to now()
       .WillOnce(Return(timeout_ms)); // First byte received
 
-  auto testobjEXF = new esx(mockSerial, mockClock);
+  auto testobjEXF = new esx(mockSerial, mockClock, dummyFilePath);
   EXPECT_THROW(testobjEXF->waitForStart(), std::runtime_error);
 }
 
@@ -104,7 +106,7 @@ TEST(StartUp1, AfterNakSendsSOH) {
       .WillOnce(DoAll(SetArgReferee<0>(xmodem::NAK), Return()));
   EXPECT_CALL(mockSerial, WriteByte(xmodem::SOH)).Times(1);
 
-  auto testobjEXF = new esx(mockSerial, mockClock);
+  auto testobjEXF = new esx(mockSerial, mockClock, dummyFilePath);
   testobjEXF->waitForStart();
   testobjEXF->sendSOH();
 }
@@ -130,8 +132,75 @@ TEST(StartUp1, AfterNakAndSOHSendsBLK) {
     EXPECT_CALL(mockSerial, WriteByte(0xFE)).Times(1);        // Expect ~BLK
   }
 
-  auto testobjEXF = new esx(mockSerial, mockClock);
+  auto testobjEXF = new esx(mockSerial, mockClock, dummyFilePath);
   testobjEXF->waitForStart();
   testobjEXF->sendSOH();
   testobjEXF->sendBlock();
+}
+
+void expectWriteBytes(MockSerialPort &mockSerial,
+                      const std::vector<char> &data) {
+  for (const auto &byte : data) {
+    EXPECT_CALL(mockSerial, WriteByte(byte)).Times(1);
+  }
+}
+
+TEST(SendData, SendSmallFile) {
+  // Setup
+  MockSerialPort mockSerial;
+  MockClock mockClock;
+
+  // Define the test file details
+  const std::string filePath = "./small.txt";
+  const std::vector<char> fileData = {'H', 'e', 'l', 'l', 'o', ' ',
+                                      'f', 'r', 'o', 'm', ' ', 'S',
+                                      'e', 'n', 'd', '.', '\n'};
+  const size_t paddingSize = xmodem::PacketSize - fileData.size();
+  const char fileCRC = 0xF0; // Example CRC value (should match the test setup)
+  const char BLK = 0x01;     // Block number
+  const char nBLK = 0xFE;    // Complement of block number
+
+  // Mock the clock behavior
+  auto start_time = std::chrono::steady_clock::now();
+  EXPECT_CALL(mockClock, now()).WillRepeatedly(Return(start_time));
+
+  // Mock the serial behavior for ReadByte
+  EXPECT_CALL(mockSerial, ReadByte(_, xmodem::WaitACK))
+      .WillOnce(DoAll(SetArgReferee<0>(xmodem::NAK), Return()))
+      .WillOnce(DoAll(SetArgReferee<0>(xmodem::ACK), Return()))
+      .WillOnce(DoAll(SetArgReferee<0>(xmodem::ACK), Return()));
+
+  // Set up the serial expectations
+  {
+    ::testing::InSequence seq;
+
+    // Control bytes
+    EXPECT_CALL(mockSerial, WriteByte(xmodem::SOH)).Times(1); // Start of Header
+    EXPECT_CALL(mockSerial, WriteByte(BLK)).Times(1);         // Block number
+    EXPECT_CALL(mockSerial, WriteByte(nBLK))
+        .Times(1); // Complement of block number
+
+    // File data
+    expectWriteBytes(mockSerial, fileData);
+
+    // Padding for the remaining bytes
+    EXPECT_CALL(mockSerial, WriteByte(xmodem::xEOF)).Times(paddingSize);
+
+    // CRC byte
+    EXPECT_CALL(mockSerial, WriteByte(fileCRC)).Times(1);
+    // EOT byte
+    EXPECT_CALL(mockSerial, WriteByte(xmodem::EOT)).Times(1);
+  }
+
+  // Create the test object
+  auto testobjEXF = std::make_unique<esx>(mockSerial, mockClock, filePath);
+
+  // Execution steps
+  testobjEXF->waitForStart(); // Wait for initial NAK
+  testobjEXF->sendSOH();      // Send SOH
+  testobjEXF->sendBlock();    // Send block number and its complement
+  testobjEXF->sendDataCrc();  // Send data and CRC
+  testobjEXF->waitForAck();   // Wait for ACK
+  testobjEXF->sendEOT();      // Send SOH
+  testobjEXF->waitForAck();   // Wait for ACK
 }
