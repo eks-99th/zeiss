@@ -10,8 +10,6 @@ using ::testing::DoAll;
 using ::testing::Return;
 using ::testing::SetArgReferee;
 
-const std::string &dummyFilePath = "dummy.txt";
-
 class MockSerialPort : public Iexs {
 public:
   MOCK_METHOD(void, ReadByte, (char &charBuffer, unsigned long msTimeout),
@@ -24,6 +22,8 @@ public:
   MOCK_METHOD(std::chrono::steady_clock::time_point, now, (),
               (const, override));
 };
+
+// const std::string &dummyFilePath = "dummy.txt";
 
 // TEST(StartUp1, WaitForStartReceiveNAK) {
 //   // The user calls the waitForStart() method and the xmodem::NAK is received

@@ -24,14 +24,14 @@ include_directories(interfaces)
 add_library(MyLibrary src/exs.cpp)
 
 # Add executable
-add_executable(serial_example src/main.cpp)
+add_executable(esx src/main.cpp)
 message(STATUS "argparse_SOURCE_DIR: ${argparse_SOURCE_DIR}")
-target_include_directories(serial_example PRIVATE ${argparse_SOURCE_DIR}/include/argparse)
+target_include_directories(esx PRIVATE ${argparse_SOURCE_DIR}/include/argparse)
 
 # Find and link LibSerial
 find_library(LibSerial_LIB serial REQUIRED)
-target_include_directories(serial_example PRIVATE /usr/include/libserial)
-target_link_libraries(serial_example PRIVATE ${LibSerial_LIB} MyLibrary)
+target_include_directories(esx PRIVATE /usr/include/libserial)
+target_link_libraries(esx PRIVATE ${LibSerial_LIB} MyLibrary)
 
 # Add Google Test
 enable_testing()
