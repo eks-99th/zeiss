@@ -74,3 +74,4 @@ rx --xmodem -vv received_file.txt < /dev/ttyUSB1 > /dev/ttyUSB1
 
 4. Verify the file received_file.txt
 
+![Demo](Demo.gif)
