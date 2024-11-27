@@ -13,6 +13,8 @@ public:
   void sendDataCrc();
   void waitForAck();
   void sendEOT();
+  bool FileTransferFinished();
+  void incBlock();
   ~esx();
 
 private:

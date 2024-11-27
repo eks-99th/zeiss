@@ -63,6 +63,8 @@ void esx::waitForAck() {
   std::cout << "ACK received." << std::endl;
 }
 
+void esx::incBlock() { _blockNumber++; }
+
 void esx::verifyAckTimeout(std::chrono::steady_clock::time_point start_time) {
   auto now = _Clock.now();
   auto elapsed_ms =
@@ -111,4 +113,9 @@ void esx::sendDataCrc() {
   _Port.WriteByte(crc);
   _state = InternalStates::SendingCrc;
   std::cout << "DATA & CRC sent." << std::endl;
+}
+
+bool esx::FileTransferFinished() {
+  verifyValidFileStream(_fileStream, _filePath);
+  return _fileStream.eof();
 }

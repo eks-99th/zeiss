@@ -138,11 +138,24 @@ TEST(StartUp1, AfterNakAndSOHSendsBLK) {
   testobjEXF->sendBlock();
 }
 
-void expectWriteBytes(MockSerialPort &mockSerial,
-                      const std::vector<char> &data) {
-  for (const auto &byte : data) {
+void expectBlock(MockSerialPort &mockSerial, const std::vector<char> &block,
+                 char blk, char nblk, const size_t paddingSize,
+                 const char blockCRC) {
+  // Control bytes
+  EXPECT_CALL(mockSerial, WriteByte(xmodem::SOH)).Times(1); // Start of Header
+  EXPECT_CALL(mockSerial, WriteByte(blk)).Times(1);         // Block number
+  EXPECT_CALL(mockSerial, WriteByte(nblk)).Times(1); // negative block number
+  // Block Data
+  for (const auto &byte : block) {
     EXPECT_CALL(mockSerial, WriteByte(byte)).Times(1);
   }
+  // Verify padding
+  if (paddingSize > 0) {
+    EXPECT_CALL(mockSerial, WriteByte(xmodem::xEOF)).Times(paddingSize);
+  }
+  EXPECT_CALL(mockSerial, WriteByte(blockCRC)).Times(1); // Block CRC
+  EXPECT_CALL(mockSerial, ReadByte(_, xmodem::WaitACK))
+      .WillOnce(DoAll(SetArgReferee<0>(xmodem::ACK), Return()));
 }
 
 TEST(SendData, SendSmallFile) {
@@ -163,33 +176,121 @@ TEST(SendData, SendSmallFile) {
   // Mock the clock behavior
   auto start_time = std::chrono::steady_clock::now();
   EXPECT_CALL(mockClock, now()).WillRepeatedly(Return(start_time));
+  EXPECT_CALL(mockSerial, ReadByte(_, xmodem::WaitACK))
+      .WillOnce(DoAll(SetArgReferee<0>(xmodem::NAK), Return()));
+
+  // Set up the expectations for first block
+  {
+    ::testing::InSequence seq;
+    expectBlock(mockSerial, fileData, BLK, nBLK, paddingSize, fileCRC);
+    EXPECT_CALL(mockSerial, WriteByte(xmodem::EOT)).Times(1);
+    EXPECT_CALL(mockSerial, ReadByte(_, xmodem::WaitACK))
+        .WillOnce(DoAll(SetArgReferee<0>(xmodem::ACK), Return()));
+  }
+
+  // Create the test object
+  auto testobjEXF = std::make_unique<esx>(mockSerial, mockClock, filePath);
+
+  // Execution steps
+  testobjEXF->waitForStart();
+  while (!testobjEXF->FileTransferFinished()) {
+    testobjEXF->sendSOH();
+    testobjEXF->sendBlock();
+    testobjEXF->sendDataCrc();
+    testobjEXF->waitForAck();
+  }
+  testobjEXF->sendEOT();
+  testobjEXF->waitForAck();
+}
+
+TEST(SendData, SendMediumFile) {
+  // Setup
+  MockSerialPort mockSerial;
+  MockClock mockClock;
+
+  // Define the test file details
+  const std::string filePath = "./medium.txt";
+  const std::vector<char> firstBlock = {
+      'L', 'o',  'r', 'e', 'm', ' ', 'i', 'p', 's', 'u', 'm', ' ', 'd',
+      'o', 'l',  'o', 'r', ' ', 's', 'i', 't', ' ', 'a', 'm', 'e', 't',
+      ',', ' ',  'c', 'o', 'n', 's', 'e', 'c', 't', 'e', 't', 'u', 'r',
+      ' ', 'a',  'd', 'i', 'p', 'i', 's', 'c', 'i', 'n', 'g', ' ', 'e',
+      'l', 'i',  't', '.', ' ', 'S', 'e', 'd', ' ', 'd', 'o', ' ', 'e',
+      'i', 'u',  's', 'm', 'o', 'd', ' ', 't', 'e', 'm', 'p', 'o', 'r',
+      ' ', '\n', 'i', 'n', 'c', 'i', 'd', 'i', 'd', 'u', 'n', 't', ' ',
+      'u', 't',  ' ', 'l', 'a', 'b', 'o', 'r', 'e', ' ', 'e', 't', ' ',
+      'd', 'o',  'l', 'o', 'r', 'e', ' ', 'm', 'a', 'g', 'n', 'a', ' ',
+      'a', 'l',  'i', 'q', 'u', 'a', '.', ' ', 'U', 't', ' '};
+  const char firstBlockCRC = 0x7B;
+  const std::vector<char> secondBlock = {
+      'e', 'n',  'i',  'm', ' ', 'a', 'd', ' ', 'm', 'i', 'n', 'i', 'm',
+      ' ', 'v',  'e',  'n', 'i', 'a', 'm', ',', ' ', 'q', 'u', 'i', 's',
+      ' ', '\n', 'n',  'o', 's', 't', 'r', 'u', 'd', ' ', 'e', 'x', 'e',
+      'r', 'c',  'i',  't', 'a', 't', 'i', 'o', 'n', ' ', 'u', 'l', 'l',
+      'a', 'm',  'c',  'o', ' ', 'l', 'a', 'b', 'o', 'r', 'i', 's', ' ',
+      'n', 'i',  's',  'i', ' ', 'u', 't', ' ', 'a', 'l', 'i', 'q', 'u',
+      'i', 'p',  ' ',  'e', 'x', ' ', 'e', 'a', ' ', 'c', 'o', 'm', 'm',
+      'o', 'd',  'o',  ' ', 'c', 'o', 'n', 's', 'e', 'q', 'u', 'a', 't',
+      '.', ' ',  '\n', 'D', 'u', 'i', 's', ' ', 'a', 'u', 't', 'e', ' ',
+      'i', 'r',  'u',  'r', 'e', ' ', 'd', 'o', 'l', 'o', 'r'};
+  const char secondBlockCRC = 0x0F;
+  const std::vector<char> thirdBlock = {
+      ' ', 'i', 'n', ' ', 'r', 'e', 'p', 'r',  'e', 'h', 'e', 'n', 'd',
+      'e', 'r', 'i', 't', ' ', 'i', 'n', ' ',  'v', 'o', 'l', 'u', 'p',
+      't', 'a', 't', 'e', ' ', 'v', 'e', 'l',  'i', 't', ' ', 'e', 's',
+      's', 'e', ' ', 'c', 'i', 'l', 'l', 'u',  'm', ' ', 'd', 'o', 'l',
+      'o', 'r', 'e', ' ', 'e', 'u', ' ', '\n', 'f', 'u', 'g', 'i', 'a',
+      't', ' ', 'n', 'u', 'l', 'l', 'a', ' ',  'p', 'a', 'r', 'i', 'a',
+      't', 'u', 'r', '.', ' ', 'E', 'x', 'c',  'e', 'p', 't', 'e', 'u',
+      'r', ' ', 's', 'i', 'n', 't', ' ', 'o',  'c', 'c', 'a', 'e', 'c',
+      'a', 't', ' ', 'c', 'u', 'p', 'i', 'd',  'a', 't', 'a', 't', ' ',
+      'n', 'o', 'n', ' ', 'p', 'r', 'o', 'i',  'd', 'e', 'n'};
+  const char thirdBlockCRC = 0xD9;
+  const std::vector<char> fourthBlock = {
+      't', ',', ' ', 's', 'u', 'n', 't', ' ',  'i', 'n', ' ', '\n', 'c',
+      'u', 'l', 'p', 'a', ' ', 'q', 'u', 'i',  ' ', 'o', 'f', 'f',  'i',
+      'c', 'i', 'a', ' ', 'd', 'e', 's', 'e',  'r', 'u', 'n', 't',  ' ',
+      'm', 'o', 'l', 'l', 'i', 't', ' ', 'a',  'n', 'i', 'm', ' ',  'i',
+      'd', ' ', 'e', 's', 't', ' ', 'l', 'a',  'b', 'o', 'r', 'u',  'm',
+      '.', ' ', 'C', 'u', 'r', 'a', 'b', 'i',  't', 'u', 'r', ' ',  'p',
+      'r', 'e', 't', 'i', 'u', 'm', ' ', '\n', 't', 'i', 'n', 'c',  'i',
+      'd', 'u', 'n', 't', ' ', 'l', 'a', 'c',  'u', 's', '.', ' ',  'N',
+      'u', 'l', 'l', 'a', ' ', 'g', 'r', 'a',  'v', 'i', 'd', 'a',  ' ',
+      'o', 'r', 'c', 'i', ' ', 'a', ' ', 'o',  'd', 'i', 'o'};
+  const char fourthBlockCRC = 0x45;
+  const std::vector<char> fifthBlock = {
+      '.', ' ', 'N', 'u', 'l', 'l', 'a', 'm', ' ', 'v', 'a', 'r',
+      'i', 'u', 's', ',', ' ', 't', 'u', 'r', 'p', 'i', 's', ' ',
+      'e', 't', ' ', 'c', 'o', 'm', 'm', 'o', 'd', 'o', ' ', '\n',
+      'p', 'h', 'a', 'r', 'e', 't', 'r', 'a', '.', '\n'};
+  const char fifthBlockCRC = 0x78;
+  const size_t fifthBlockpadding = xmodem::PacketSize - fifthBlock.size();
+  const size_t noBlockpadding = 0;
+
+  // Mock the clock behavior
+  auto start_time = std::chrono::steady_clock::now();
+  EXPECT_CALL(mockClock, now()).WillRepeatedly(Return(start_time));
 
   // Mock the serial behavior for ReadByte
   EXPECT_CALL(mockSerial, ReadByte(_, xmodem::WaitACK))
-      .WillOnce(DoAll(SetArgReferee<0>(xmodem::NAK), Return()))
-      .WillOnce(DoAll(SetArgReferee<0>(xmodem::ACK), Return()))
-      .WillOnce(DoAll(SetArgReferee<0>(xmodem::ACK), Return()));
+      .WillOnce(DoAll(SetArgReferee<0>(xmodem::NAK), Return()));
 
-  // Set up the serial expectations
+  // Set up the expectations for first block
   {
     ::testing::InSequence seq;
-
-    // Control bytes
-    EXPECT_CALL(mockSerial, WriteByte(xmodem::SOH)).Times(1); // Start of Header
-    EXPECT_CALL(mockSerial, WriteByte(BLK)).Times(1);         // Block number
-    EXPECT_CALL(mockSerial, WriteByte(nBLK))
-        .Times(1); // Complement of block number
-
-    // File data
-    expectWriteBytes(mockSerial, fileData);
-
-    // Padding for the remaining bytes
-    EXPECT_CALL(mockSerial, WriteByte(xmodem::xEOF)).Times(paddingSize);
-
-    // CRC byte
-    EXPECT_CALL(mockSerial, WriteByte(fileCRC)).Times(1);
-    // EOT byte
+    expectBlock(mockSerial, firstBlock, 0x01, 0xFE, noBlockpadding,
+                firstBlockCRC);
+    expectBlock(mockSerial, secondBlock, 0x02, 0xFD, noBlockpadding,
+                secondBlockCRC);
+    expectBlock(mockSerial, thirdBlock, 0x03, 0xFC, noBlockpadding,
+                thirdBlockCRC);
+    expectBlock(mockSerial, fourthBlock, 0x04, 0xFB, noBlockpadding,
+                fourthBlockCRC);
+    expectBlock(mockSerial, fifthBlock, 0x05, 0xFA, fifthBlockpadding,
+                fifthBlockCRC);
     EXPECT_CALL(mockSerial, WriteByte(xmodem::EOT)).Times(1);
+    EXPECT_CALL(mockSerial, ReadByte(_, xmodem::WaitACK))
+        .WillOnce(DoAll(SetArgReferee<0>(xmodem::ACK), Return()));
   }
 
   // Create the test object
@@ -197,10 +298,13 @@ TEST(SendData, SendSmallFile) {
 
   // Execution steps
   testobjEXF->waitForStart(); // Wait for initial NAK
-  testobjEXF->sendSOH();      // Send SOH
-  testobjEXF->sendBlock();    // Send block number and its complement
-  testobjEXF->sendDataCrc();  // Send data and CRC
-  testobjEXF->waitForAck();   // Wait for ACK
-  testobjEXF->sendEOT();      // Send SOH
-  testobjEXF->waitForAck();   // Wait for ACK
+  while (!testobjEXF->FileTransferFinished()) {
+    testobjEXF->sendSOH();     // Send SOH
+    testobjEXF->sendBlock();   // Send block number and its complement
+    testobjEXF->sendDataCrc(); // Send data and CRC
+    testobjEXF->waitForAck();  // Wait for ACK
+    testobjEXF->incBlock();    // Increment block number
+  }
+  testobjEXF->sendEOT();    // Send EOT
+  testobjEXF->waitForAck(); // Wait for ACK
 }
