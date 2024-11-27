@@ -40,35 +40,6 @@ private:
   LibSerial::SerialPort serialPort;
 };
 
-size_t getFileSize(const std::string &filePath) {
-  std::ifstream file(filePath, std::ios::binary | std::ios::ate);
-  if (!file.is_open()) {
-    throw std::runtime_error("Failed to open file: " + filePath);
-  }
-
-  size_t fileSize = file.tellg();
-  file.close();
-
-  return fileSize;
-}
-
-void printFileAsHex(const std::string &filePath) {
-  std::ifstream file(filePath, std::ios::binary); // Open file in binary mode
-  if (!file.is_open()) {
-    std::cerr << "Failed to open file: " << filePath << std::endl;
-    return;
-  }
-
-  char byte;
-  while (file.get(byte)) {
-    std::cout << std::hex << std::setfill('0') << std::setw(2)
-              << (static_cast<unsigned int>(byte) & 0xFF) << " ";
-  }
-
-  std::cout << std::endl;
-  file.close();
-}
-
 int main(int argc, char *argv[]) {
   // Argument parsing with argparse
   argparse::ArgumentParser program("xmodem_transfer");
@@ -97,10 +68,6 @@ int main(int argc, char *argv[]) {
     std::string filePath = program.get<std::string>("--file");
     std::string serialPortName = program.get<std::string>("--port");
 
-    size_t fileSize = getFileSize(filePath);
-    std::cout << "File size: " << fileSize << " bytes" << std::endl;
-    printFileAsHex(filePath);
-
     // Initialize the serial port and clock
     exsSerialPort serialPort(serialPortName);
     Clock clock;
@@ -108,9 +75,13 @@ int main(int argc, char *argv[]) {
     // Create an instance of esx
     esx myExf(serialPort, clock, filePath);
 
-    // Call waitForStart to wait for NAK
-    myExf.waitForStart();
-    std::cout << "Successfully received NAK. Ready to proceed." << std::endl;
+    myExf.waitForStart(); // Wait for initial NAK
+    myExf.sendSOH();      // Send SOH
+    myExf.sendBlock();    // Send block number and its complement
+    myExf.sendDataCrc();  // Send data and CRC
+    myExf.waitForAck();   // Wait for ACK
+    myExf.sendEOT();      // Send SOH
+    myExf.waitForAck();   // Wait for ACK
 
   } catch (const std::exception &e) {
     std::cerr << "Error: " << e.what() << std::endl;

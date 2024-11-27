@@ -1,8 +1,8 @@
 #!/bin/bash
 
-bash -c "python3 ./receiver.py" &
-SCRIPT_PID=$!
-echo "receiver script is running in the background (PID: $SCRIPT_PID)."
-echo "Running serial_example..."
-../build/serial_example --file ../Send/Hello.txt -p /dev/ttyUSB0
-wait $SCRIPT_PID
+# This script is used to test the serial_example program.
+# Run the serial_example program in the background
+../build/serial_example --file /home/eks99th/Desktop/zeiss/Send/Hello.txt -p /dev/ttyUSB0 &
+
+# Run the rx command with xmodem protocol
+rx --xmodem -vv received_file.txt < /dev/ttyUSB1 > /dev/ttyUSB1

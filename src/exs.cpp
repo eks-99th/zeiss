@@ -43,20 +43,24 @@ esx::~esx() {
 void esx::waitForStart() {
   char charBuffer = 0;
   auto start_time = _Clock.now();
+  std::cout << "Waiting for start..." << std::endl;
   while (charBuffer != xmodem::NAK) {
     verifyAckTimeout(start_time);
     _Port.ReadByte(charBuffer, xmodem::WaitACK);
   }
+  std::cout << "Start received." << std::endl;
   _state = InternalStates::SendingSoh;
 }
 
 void esx::waitForAck() {
+  std::cout << "Waiting for ACK..." << std::endl;
   char charBuffer = 0;
   auto start_time = _Clock.now();
   while (charBuffer != xmodem::ACK) {
     verifyAckTimeout(start_time);
     _Port.ReadByte(charBuffer, xmodem::WaitACK);
   }
+  std::cout << "ACK received." << std::endl;
 }
 
 void esx::verifyAckTimeout(std::chrono::steady_clock::time_point start_time) {
@@ -71,23 +75,30 @@ void esx::verifyAckTimeout(std::chrono::steady_clock::time_point start_time) {
 }
 
 void esx::sendSOH() {
+  std::cout << "Sending SOH..." << std::endl;
   _Port.WriteByte(xmodem::SOH);
   _state = InternalStates::SendingBlk;
+  std::cout << "SOH sent." << std::endl;
 }
 
 void esx::sendEOT() {
+  std::cout << "Sending EOT..." << std::endl;
   _Port.WriteByte(xmodem::EOT);
   _state = InternalStates::WaitingAck;
+  std::cout << "EOT sent." << std::endl;
 }
 
 void esx::sendBlock() {
+  std::cout << "Sending BLOCK..." << std::endl;
   _Port.WriteByte(_blockNumber);
   _Port.WriteByte(~_blockNumber);
   _state = InternalStates::SendingData;
+  std::cout << "BLK sent." << std::endl;
 }
 
 void esx::sendDataCrc() {
   // Create a buffer to hold the data filled with xmodem::xEOF
+  std::cout << "Sending DATA & CRC..." << std::endl;
   char dataBuffer[xmodem::PacketSize];
   char crc = 0;
   std::fill(std::begin(dataBuffer), std::end(dataBuffer), xmodem::xEOF);
@@ -99,4 +110,5 @@ void esx::sendDataCrc() {
   }
   _Port.WriteByte(crc);
   _state = InternalStates::SendingCrc;
+  std::cout << "DATA & CRC sent." << std::endl;
 }
