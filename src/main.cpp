@@ -74,16 +74,7 @@ int main(int argc, char *argv[]) {
 
     // Create an instance of esx
     esx myExf(serialPort, clock, filePath);
-    myExf.waitForStart(); // Wait for initial NAK
-    while (!myExf.FileTransferFinished()) {
-      myExf.sendSOH();     // Send SOH
-      myExf.sendBlock();   // Send block number and its complement
-      myExf.sendDataCrc(); // Send data and CRC
-      myExf.waitForAck();  // Wait for ACK
-    }
-    myExf.sendEOT();    // Send EOT
-    myExf.waitForAck(); // Wait for ACK
-
+    myExf.send();
   } catch (const std::exception &e) {
     std::cerr << "Error: " << e.what() << std::endl;
     return 1;

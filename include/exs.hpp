@@ -7,14 +7,7 @@
 class esx {
 public:
   explicit esx(Iexs &port, IClock &clock, const std::string &filePath);
-  void waitForStart();
-  void sendSOH();
-  void sendBlock();
-  void sendDataCrc();
-  void waitForAck();
-  void sendEOT();
-  bool FileTransferFinished();
-  void incBlock();
+  void send();
   ~esx();
 
 private:
@@ -23,4 +16,12 @@ private:
   const std::string &_filePath;
   std::ifstream _fileStream;
   void verifyAckTimeout(std::chrono::steady_clock::time_point start_time);
+  void waitForStart();
+  void sendSOH();
+  void sendBlock();
+  void sendDataCrc();
+  void waitForAck();
+  void sendEOT();
+  bool FileTransferFinished();
+  void incBlock();
 };

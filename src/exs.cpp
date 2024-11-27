@@ -34,6 +34,19 @@ esx::esx(Iexs &port, IClock &clock, const std::string &filePath)
   _blockNumber = 1;
 }
 
+void esx::send() {
+  waitForStart();
+  while (!FileTransferFinished()) {
+    sendSOH();
+    sendBlock();
+    sendDataCrc();
+    waitForAck();
+    incBlock();
+  }
+  sendEOT();
+  waitForAck();
+}
+
 esx::~esx() {
   if (_fileStream.is_open()) {
     _fileStream.close();
